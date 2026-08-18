@@ -1,0 +1,4 @@
+# Local settings and exported variants containing production values
+*.local.json
+*.private.json
+.env

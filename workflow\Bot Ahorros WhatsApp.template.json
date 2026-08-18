@@ -1,0 +1,502 @@
+{
+  "name": "💰 Bot Ahorros WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-ahorros",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -672,
+        -64
+      ],
+      "id": "799d4f48-4869-422a-b1d9-2a7ee819a77b",
+      "name": "Webhook",
+      "webhookId": "fcaebc33-fb00-42c4-9dc9-eb423f26ed88"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fff78b6b-2e7c-4ff7-9528-4f1f955ff7a6",
+              "leftValue": "={{$json.body.payload.fromMe}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "d4b0eea7-c7ec-452a-8cd6-0829bbf38ed8",
+              "leftValue": "={{$json.body.payload.to}}",
+              "rightValue": "YOUR_CHAT_ID@lid",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -512,
+        -64
+      ],
+      "id": "b1e5099c-343b-4f85-996b-da7425c377d4",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Obtener mensaje original de WhatsApp\nconst mensajeOriginal = $json.body.payload.body\n  .toLowerCase()\n  .trim();\n\n// Ignorar mensajes generados por el propio bot\nif (\n  mensajeOriginal.startsWith(\"✅\") ||\n  mensajeOriginal.startsWith(\"💸\") ||\n  mensajeOriginal.startsWith(\"💰\")\n) {\n  return {\n    valido: false,\n    mensajeOriginal,\n    ignorado: true,\n    motivo: \"Respuesta automática del bot\"\n  };\n}\n\n// Quitar el prefijo que usamos para identificar\n// nuestros mensajes de prueba\nconst mensaje = mensajeOriginal\n  .replace(/^ahorro_test_\\d+\\s*/i, \"\")\n  .trim();\n\n// Buscar la cantidad\nconst coincidencia = mensaje.match(\n  /(?:\\$?\\s*)(\\d+(?:[.,]\\d{1,2})?)/\n);\n\nif (!coincidencia) {\n  return {\n    valido: false,\n    mensajeOriginal,\n    error: \"No encontré una cantidad\"\n  };\n}\n\nconst cantidad = parseFloat(\n  coincidencia[1].replace(\",\", \".\")\n);\n\n// Palabras que indican AHORRO\nconst palabrasAhorro = [\n  \"ahorre\",\n  \"ahorré\",\n  \"ahorro\",\n  \"guarde\",\n  \"guardé\",\n  \"aparte\",\n  \"aparté\",\n  \"meti\",\n  \"metí\",\n  \"deposite\",\n  \"deposité\"\n];\n\n// Palabras que indican RETIRO\nconst palabrasRetiro = [\n  \"retire\",\n  \"retiré\",\n  \"retiro\",\n  \"tome\",\n  \"tomé\",\n  \"saque\",\n  \"saqué\",\n  \"quite\",\n  \"quité\"\n];\n\nlet tipo = null;\n\nif (palabrasAhorro.some(palabra => mensaje.includes(palabra))) {\n  tipo = \"Ahorro\";\n}\n\nif (palabrasRetiro.some(palabra => mensaje.includes(palabra))) {\n  tipo = \"Retiro\";\n}\n\nif (!tipo) {\n  return {\n    valido: false,\n    mensajeOriginal,\n    cantidad,\n    error: \"No pude determinar si es ahorro o retiro\"\n  };\n}\n\n// Crear concepto automáticamente\nlet concepto = mensaje;\n\n// Quitar la cantidad\nconcepto = concepto.replace(\n  /\\$?\\s*\\d+(?:[.,]\\d{1,2})?/,\n  \"\"\n);\n\n// Quitar palabras comunes\nconst palabrasEliminar = [\n  \"ahorre\",\n  \"ahorré\",\n  \"ahorro\",\n  \"guarde\",\n  \"guardé\",\n  \"aparte\",\n  \"aparté\",\n  \"meti\",\n  \"metí\",\n  \"deposite\",\n  \"deposité\",\n  \"retire\",\n  \"retiré\",\n  \"retiro\",\n  \"tome\",\n  \"tomé\",\n  \"saque\",\n  \"saqué\",\n  \"quite\",\n  \"quité\",\n  \"pesos\",\n  \"peso\",\n  \"de mis ahorros\",\n  \"del ahorro\",\n  \"para\",\n  \"en\"\n];\n\nfor (const palabra of palabrasEliminar) {\n  concepto = concepto.replace(\n    new RegExp(`\\\\b${palabra}\\\\b`, \"gi\"),\n    \"\"\n  );\n}\n\nconcepto = concepto\n  .replace(/\\s+/g, \" \")\n  .trim();\n\n// Si no quedó concepto, usar el tipo\nif (!concepto) {\n  concepto = tipo;\n}\n\n// Primera letra mayúscula\nconcepto =\n  concepto.charAt(0).toUpperCase() +\n  concepto.slice(1);\n\nreturn {\n  valido: true,\n  tipo,\n  cantidad,\n  concepto,\n  mensajeOriginal,\n  fecha: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        16
+      ],
+      "id": "a8799785-090c-40bb-b8f0-a69e08dddcd5",
+      "name": "🧠 Interpretar movimiento"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8f508313-1bf3-48ed-85c7-990db44495b0",
+              "leftValue": "={{$json.valido}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -128,
+        176
+      ],
+      "id": "b6c207ad-0480-44f9-a6c6-4b9361b2587a",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATA_SOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Ahorros",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_DATABASE"
+        },
+        "title": "={{ $json.concepto }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Cantidad|number",
+              "numberValue": "={{ $json.cantidad }}"
+            },
+            {
+              "key": "Tipo|select",
+              "selectValue": "={{ $json.tipo }}"
+            },
+            {
+              "key": "Fecha|date",
+              "date": "={{ $json.fecha }}"
+            },
+            {
+              "key": "Mensaje|rich_text",
+              "textContent": "={{ $json.mensajeOriginal }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        32,
+        160
+      ],
+      "id": "1759d319-955c-4ecf-99be-79353793ca9e",
+      "name": "Create a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "Pm2TkQ1ABfmfA4Dr",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATA_SOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Ahorros",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_DATABASE"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        208,
+        160
+      ],
+      "id": "4aac6915-26f1-4a4e-8259-143b7d2d89eb",
+      "name": "Get Many",
+      "credentials": {
+        "notionApi": {
+          "id": "Pm2TkQ1ABfmfA4Dr",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let totalAhorros = 0;\nlet totalRetiros = 0;\n\nfor (const item of items) {\n  const tipo = item.json.property_tipo;\n  const cantidad = Number(item.json.property_cantidad || 0);\n\n  if (tipo === \"Ahorro\") {\n    totalAhorros += cantidad;\n  }\n\n  if (tipo === \"Retiro\") {\n    totalRetiros += cantidad;\n  }\n}\n\nconst saldo = totalAhorros - totalRetiros;\n\nreturn [\n  {\n    json: {\n      totalAhorros,\n      totalRetiros,\n      saldo\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        160
+      ],
+      "id": "ef509db2-341f-4cd3-a380-b152df1ec708",
+      "name": "Calcular Saldo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_LOCAL_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "ahorros"
+            },
+            {
+              "name": "chatId",
+              "value": "YOUR_CHAT_ID@lid"
+            },
+            {
+              "name": "text",
+              "value": "={{\n  $('🧠 Interpretar movimiento').item.json.tipo === 'Ahorro'\n    ? '✅ Ahorro registrado: $' + $('🧠 Interpretar movimiento').item.json.cantidad + '\\n💰 Saldo actual: $' + $json.saldo\n    : '💸 Retiro registrado: $' + $('🧠 Interpretar movimiento').item.json.cantidad + '\\n💰 Saldo actual: $' + $json.saldo\n}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        560,
+        160
+      ],
+      "id": "58a606db-6b99-4ef6-a00f-bdbf300dd2b1",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b7cc37f-59b0-4ceb-9575-a07924e93136",
+              "leftValue": "={{ $json.body.payload.body.toLowerCase().trim() }}",
+              "rightValue": "/saldo",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -304,
+        -80
+      ],
+      "id": "613f5bad-2558-4e0b-b9dd-70ca43207e01",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "dataSourceId": {
+          "__rl": true,
+          "value": "YOUR_NOTION_DATA_SOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Ahorros",
+          "cachedResultUrl": "https://www.notion.so/YOUR_NOTION_DATABASE"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        -176
+      ],
+      "id": "697ff627-505d-4ceb-b45c-0f8050e3ae1b",
+      "name": "Get Many1",
+      "credentials": {
+        "notionApi": {
+          "id": "Pm2TkQ1ABfmfA4Dr",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let totalAhorros = 0;\nlet totalRetiros = 0;\n\nfor (const item of items) {\n  const tipo = item.json.property_tipo;\n  const cantidad = Number(item.json.property_cantidad || 0);\n\n  if (tipo === \"Ahorro\") {\n    totalAhorros += cantidad;\n  }\n\n  if (tipo === \"Retiro\") {\n    totalRetiros += cantidad;\n  }\n}\n\nconst saldo = totalAhorros - totalRetiros;\n\nreturn [\n  {\n    json: {\n      totalAhorros,\n      totalRetiros,\n      saldo\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -176
+      ],
+      "id": "0e6427e4-6965-4dd4-934a-d4e9bc00b943",
+      "name": "Calcular Saldo1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Api-Key",
+              "value": "YOUR_LOCAL_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "ahorros"
+            },
+            {
+              "name": "chatId",
+              "value": "YOUR_CHAT_ID@lid"
+            },
+            {
+              "name": "text",
+              "value": "={{ \n'💰 Tu ahorro actual es: $' + $json.saldo +\n'\\n\\n📥 Total ahorrado: $' + $json.totalAhorros +\n'\\n📤 Total retirado: $' + $json.totalRetiros\n}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        192,
+        -176
+      ],
+      "id": "5788209e-f6c4-4d5e-a59d-b0ee6b08da63",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Interpretar movimiento": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a database page": {
+      "main": [
+        [
+          {
+            "node": "Get Many",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Many": {
+      "main": [
+        [
+          {
+            "node": "Calcular Saldo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Saldo": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Get Many1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🧠 Interpretar movimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Many1": {
+      "main": [
+        [
+          {
+            "node": "Calcular Saldo1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Saldo1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c25ec441-386f-470b-a925-2630dc1ac938",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9f9e6cd7177263ae20a5df0708c23b934241eabf67cde382239b3de627c0e63e"
+  },
+  "nodeGroups": [],
+  "id": "iXLJmS6vUhwfj5pJ",
+  "tags": []
+}
